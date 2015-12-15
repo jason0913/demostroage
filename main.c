@@ -1,4 +1,18 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <signal.h>
 
+#include "logger.h"
+#include "storage_func.h"
+#include "storage_sync.h"
+#include "sockopt.h"
+#include "tracker_client_thread.h"
+#include "shared_func.h"
+#include "fdfs_global.h"
+
+bool bReloadFlag = false;
 
 void sigIntHandler(int sig);
 void sigQuitHandler(int sig);
@@ -28,7 +42,7 @@ int main(int argc, char const *argv[])
 
 	if (0 !=(result = storage_load_from_conf_file(conf_filename,bind_addr,sizeof(bind_addr))))
 	{
-		printf("storage_load_from_conf_file failed!\n", );
+		printf("storage_load_from_conf_file failed!\n");
 		return result;
 	}
 
@@ -91,7 +105,7 @@ int main(int argc, char const *argv[])
 	umask(0);
 
 	g_storage_thread_count =0;
-	pthread_attr_init(*pth_attr);
+	pthread_attr_init(&pth_attr);
 	result = pthread_attr_setdetachstate(&pth_attr, PTHREAD_CREATE_DETACHED);
 
 	if (0 !=(result = tracker_report_thread_start()))
@@ -101,5 +115,75 @@ int main(int argc, char const *argv[])
 		storage_close_storage_stat();
 		return result;
 	}
+
+	signal(SIGINT,sigIntHandler);
+	signal(SIGQUIT,sigQuitHandler);
+	signal(SIGTERM,sigQuitHandler);
+	signal(SIGHUP,sigHupHandler);
+	signal(SIGPIPE,SIG_IGN);
+
+	while(g_continue_flag)
+	{
+		comesock = nbaccept(sock,60,&result);
+		if (comesock <0)
+		{
+			printf("nbaccept failed\n");
+			continue;
+		}
+
+		if (0 != pthread_mutex_lock(&g_storage_thread_lock))
+		{
+			printf("pthread_mutex_lock faile\n");
+		}
+
+		if (g_storage_thread_count >  g_max_connections)
+		{
+			printf("g_storage_thread_count exceed g_max_connections\n");
+			close(comesock);
+		}
+		else
+		{
+
+		}
+
+		if (0 != pthread_mutex_unlock(&g_storage_thread_lock))
+		{
+			printf("pthread_mutex_unlock\n");
+		}
+		printf("g_continue_flag main sleep...\n");
+		sleep(1);
+	}
+	while(0 != g_storage_thread_count)
+	{
+		sleep(1);
+	}
+
+	pthread_attr_destroy(&pth_attr);
+	pthread_mutex_destroy(&g_storage_thread_lock);
+
+	storage_sync_destroy();
+	storage_close_storage_stat();
+
+	printf("exit normally\n");
+	
+	return 0;
+}
+
+void sigIntHandler(int sig)
+{
+	g_continue_flag = false;
+}
+void sigQuitHandler(int sig)
+{
+	g_continue_flag = false;
+}
+void sigHupHandler(int sig)
+{
+	bReloadFlag = true;
+}
+
+int setRandSeed()
+{
+	printf("setRandSeed done\n");
 	return 0;
 }
