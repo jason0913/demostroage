@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "logger.h"
 #include "storage_func.h"
