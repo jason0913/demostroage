@@ -7,6 +7,8 @@ typedef char  bool;
 #define false 0
 #endif
 
+#define MAX_PATH_SIZE				256
+#define LINE_MAX				256
 #define FDFS_IPADDR_SIZE	16
 #define STORAGE_ERROR_LOG_FILENAME      "storaged"
 #define FDFS_STORAGE_SERVER_DEF_PORT		23000
