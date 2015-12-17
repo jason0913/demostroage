@@ -12,6 +12,7 @@ typedef char  bool;
 #define FDFS_IPADDR_SIZE	16
 #define STORAGE_ERROR_LOG_FILENAME      "storaged"
 #define FDFS_STORAGE_SERVER_DEF_PORT		23000
+#define FDFS_STORAGE_SERVER_DEF_PORT		23000
 #define FDFS_DEF_MAX_CONNECTONS			256
 
 #endif

@@ -2,16 +2,37 @@
 #include <time.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#include <string.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "logger.h"
-//#include "fdfs_define.h"
+#include "shared_func.h"
 #include "fdfs_global.h"
+
+char g_error_file_prefix[64] = {'\0'};
 
 int check_and_mk_log_dir()
 {
-	printf("check_and_mk_log_dir done!\n");
+
+	char data_path[MAX_PATH_SIZE];
+
+	snprintf(data_path,sizeof(data_path),"%s/log",g_base_path);
+	if (!fileExists(data_path))
+	{
+		if (0 != mkdir(data_path,0755))
+		{
+			fprintf(stderr, "mkdir \"%s\" fail,errno =%d, err info= %s\n",\
+			data_path,errno,strerror(errno));
+
+			return errno != 0 ?errno:ENOENT;
+		}
+	}
+
+#ifdef __DEBUG__
+		fprintf(stderr,"%s,%d:check_and_mk_log_dir done!\n",__FILE__,__LINE__);
+#endif
 
 	return 0;
 }
@@ -60,7 +81,18 @@ static void doLog(const char *prefix,const char *text)
 		fclose(fp);
 	}
 }
+
 void logError(const char *prefix, const char *format,...)
+{
+	char logBuffer[LINE_MAX];
+	va_list ap;
+	va_start(ap,format);
+	vsnprintf(logBuffer,sizeof(logBuffer),format,ap);
+	doLog(g_error_file_prefix,logBuffer);
+	va_end(ap);
+}
+
+void logErrorEX(const char* prefix, const char* format, ...)
 {
 	char logBuffer[LINE_MAX];
 	va_list ap;

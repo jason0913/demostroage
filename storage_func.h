@@ -1,6 +1,9 @@
 #ifndef __STORAGE_FUNC_
 #define __STORAGE_FUNC_
 
+#define STORAGE_DATA_DIR_FORMAT		"%02X"
+
+
 extern int storage_load_from_conf_file(const char *conf_filename,\
 			char *bind_addr,const int addr_size);
 extern int storage_check_and_make_data_dirs();

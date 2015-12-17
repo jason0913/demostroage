@@ -2,10 +2,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include "logger.h"
 #include "storage_func.h"
@@ -187,6 +189,23 @@ void sigHupHandler(int sig)
 
 int setRandSeed()
 {
+
+	struct timeval tv;
+
+	if (0 != gettimeofday(&tv,NULL))
+	{
+		logError("file: %s, line: %d, " \
+					 "call gettimeofday fail, " \
+					 "errno=%d, error info: %s", \
+					 __FILE__,__LINE__, errno, strerror(errno));
+		return errno != 0 ? errno : EPERM;
+	}
+
+	srand(tv.tv_sec ^ tv.tv_usec);
+
+#ifdef __DEBUG__
 	printf("setRandSeed done\n");
+#endif
+
 	return 0;
 }

@@ -3,14 +3,14 @@
 CC = gcc
 RM = rm
 RMFLAG = -rf
-CFLAG = -Wall -lpthread -g
+CFLAG = -Wall -DOS_LINUX -D__DEBUG__ -lpthread -g
 
 EXE = demostorage.exe
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 
 $(EXE):$(OBJS)
-	$(CC) $^ -o $@
+	$(CC) $^ -o $@ $(CFLAG)
 %.o:%.c
 	$(CC) -c $^ -o $@ $(CFLAG)
 
