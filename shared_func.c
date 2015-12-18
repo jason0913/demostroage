@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
@@ -77,4 +78,68 @@ bool isDir(const char *filename)
 		return false;
 	}
 	return S_ISREG(buf.st_mode);
+}
+
+char * trim_right(char *pStr)
+{
+	int len;
+	char *pEnd;
+	char *p;
+	char ch;
+
+	len = strlen(pStr);
+	if (0 == len)
+	{
+		return pStr;
+	}
+	pEnd = pStr + strlen(pStr) -1;
+	for (p = pEnd; p > pStr; --p)
+	{
+		ch = *p;
+		if (' ' == ch || '\n' == ch || '\r' == ch || '\t' == ch)
+		{
+			break;
+		}
+	}
+	if (p != pEnd)
+	{
+		*(p +1) = '\0';
+	}
+	return pStr;
+}
+
+char * trim_left(char *pStr)
+{
+	int iLength;
+	char *pTemp;
+	char ch;
+	int nDestlen;
+
+	iLength = strlen(pStr);
+	int i;
+	for (i =0; i < iLength; i++)
+	{
+		ch = pStr[i];
+		if (!(' ' == ch || '\n' == ch || '\r' == ch || '\t' == ch))
+		{
+			break;
+		}
+	}
+	if (i == 0)
+	{
+		return pStr;
+	}
+	nDestlen = iLength - i;
+	pTemp = (char *)malloc(nDestlen + 1);
+	strcpy(pTemp, pStr + i);
+	strcpy(pStr, pTemp);
+	free(pTemp);
+	return pStr;
+}
+
+char *trim(char *pStr)
+{
+	trim_right(pStr);
+	trim_left(pStr);
+	return pStr;
 }

@@ -19,7 +19,7 @@ int socketServer(const char *bind_ipaddr, const int port, \
 	sock = socket(AF_INET,SOCK_STREAM,0);
 	if (sock <0)
 	{
-		logErrorEX(szLogFilePrefix,"file: "__FILE__",line:%d"\
+		logErrorEx(szLogFilePrefix,"file: "__FILE__",line:%d"\
 			"socket creat file,errno= %d,err info= %s",\
 			__LINE__,errno,strerror(errno));
 		return -1;
@@ -28,7 +28,7 @@ int socketServer(const char *bind_ipaddr, const int port, \
 	result = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &result, sizeof(int));
 	if (result <0)
 	{
-		logErrorEX(szLogFilePrefix,"file: "__FILE__",line:%d"\
+		logErrorEx(szLogFilePrefix,"file: "__FILE__",line:%d"\
 			"setsockopt failed,errno= %d,err info= %s",\
 			__LINE__,errno,strerror(errno));
 		close(sock);
@@ -45,7 +45,7 @@ int socketServer(const char *bind_ipaddr, const int port, \
 	{
 		if (0 == inet_aton(bind_ipaddr,&bindaddr.sin_addr))
 		{
-			logErrorEX(szLogFilePrefix,"file: "__FILE__",line:%d,"\
+			logErrorEx(szLogFilePrefix,"file: "__FILE__",line:%d,"\
 			"invalid ip %s,errno = %d ,err info = %s",\
 			__LINE__,bind_ipaddr,errno,strerror(errno));
 
@@ -57,7 +57,7 @@ int socketServer(const char *bind_ipaddr, const int port, \
 	result = bind(sock,(struct sockaddr*)&bindaddr, sizeof(bindaddr));
 	if (result <0)
 	{
-		logErrorEX(szLogFilePrefix,"file: "__FILE__",line:%d,"\
+		logErrorEx(szLogFilePrefix,"file: "__FILE__",line:%d,"\
 			"bind port fail,errno = %d,err info = %s",\
 			__LINE__,errno,strerror(errno));
 
@@ -68,7 +68,7 @@ int socketServer(const char *bind_ipaddr, const int port, \
 	result = listen(sock,5);
 	if (result <0)
 	{
-		logErrorEX(szLogFilePrefix,"file: "__FILE__",line:%d,"\
+		logErrorEx(szLogFilePrefix,"file: "__FILE__",line:%d,"\
 			"listen port fail,errno = %d,err info = %s",\
 			__LINE__,errno,strerror(errno));
 

@@ -92,7 +92,7 @@ void logError(const char *prefix, const char *format,...)
 	va_end(ap);
 }
 
-void logErrorEX(const char* prefix, const char* format, ...)
+void logErrorEx(const char* prefix, const char* format, ...)
 {
 	char logBuffer[LINE_MAX];
 	va_list ap;
