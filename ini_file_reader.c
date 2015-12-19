@@ -4,6 +4,7 @@
 #include <errno.h>
 
 #include "ini_file_reader.h"
+#include "shared_func.h"
 
 #define _LINE_BUFFER_SIZE	512
 #define _ALLOC_ITEMS_ONCE	  8
@@ -11,6 +12,59 @@
 int compareByItemName(const void *p1, const void *p2)
 {
 	return strcmp(((IniItemInfo *)p1)->name, ((IniItemInfo *)p2)->name);
+}
+
+char *iniGetStrValue(const char *szName, IniItemInfo *items, \
+			const int nItemCount)
+{
+	IniItemInfo targetItem;
+	void *pResult;
+
+	if (nItemCount <=0)
+	{
+		return NULL;
+	}
+	snprintf(targetItem.name,sizeof(targetItem.name),"%s",szName);
+	pResult = bsearch(&targetItem,items,nItemCount,sizeof(IniItemInfo),compareByItemName);
+	if (NULL == pResult)
+	{
+		return NULL;
+	}
+	else
+		return ((IniItemInfo*)pResult)->value;
+}
+
+int iniGetIntValue(const char *szName, IniItemInfo *items, \
+			const int nItemCount, const int nDefaultValue)
+{
+	char *pValue;
+
+	pValue = iniGetStrValue(szName,items,nItemCount);
+	if (NULL == pValue)
+	{
+		return nDefaultValue;
+	}
+	else
+		return atoi(pValue);
+}
+
+bool iniGetBoolValue(const char *szName, IniItemInfo *items, \
+		const int nItemCount)
+{
+	char *pValue;
+
+	pValue = iniGetStrValue(szName,items,nItemCount);
+	if (NULL == pValue)
+	{
+		return false;
+	}
+	else
+	{
+		return strcasecmp(pValue,"true") ==0 ||
+				strcasecmp(pValue,"yes") ==0 ||
+				strcasecmp(pValue,"on") ==0||
+				strcmp(pValue,"1") ==0;
+	}
 }
 
 int iniLoadItems(const char *szFilename, IniItemInfo **ppItems, int *nItemCount)
@@ -113,4 +167,55 @@ int iniLoadItems(const char *szFilename, IniItemInfo **ppItems, int *nItemCount)
 void iniFreeItems(IniItemInfo *items)
 {
 	;
+}
+
+int iniGetValues(const char *szName, IniItemInfo *items, const int nItemCount, \
+			char **szValues, const int max_values)
+{
+	IniItemInfo targetItem;
+	IniItemInfo *pFound;
+	IniItemInfo *pItem;
+	IniItemInfo *pItemEnd;
+
+	char **ppValues;
+
+	if (nItemCount <= 0 || max_values <=0)
+	{
+		return 0;
+	}
+	snprintf(targetItem.name,sizeof(targetItem.name),"%s",szName);
+	pFound = (IniItemInfo *)bsearch(&targetItem, items, nItemCount, \
+				sizeof(IniItemInfo), compareByItemName);
+	if (NULL == pFound)
+	{
+		return 0;
+	}
+
+	ppValues = szValues;
+	*ppValues++ = pFound->value;
+	for (pItem = pFound -1; pItem >= items;pItem--)
+	{
+		if (strcmp(pItem->name,szName) != 0)
+		{
+			break;
+		}
+		if (ppValues - szValues < max_values)
+		{
+			*ppValues++ = pItem->value;
+		}
+	}
+
+	pItemEnd = items + nItemCount;
+	for (pItem = pFound +1; pItem < pItemEnd; pItem++)
+	{
+		if (0 != strcmp(pItem->name, szName))
+		{
+			break;
+		}
+		if (ppValues - szValues < max_values)
+		{
+			*ppValues++ = pItem->value;
+		}
+	}
+	return ppValues - szValues;
 }

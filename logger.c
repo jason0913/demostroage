@@ -101,3 +101,13 @@ void logErrorEx(const char* prefix, const char* format, ...)
 	doLog(prefix,logBuffer);
 	va_end(ap);
 }
+
+void logInfo(const char* prefix, const char* format, ...)
+{
+	char logBuffer[LINE_MAX];
+	va_list ap;
+	va_start(ap,format);
+	vsnprintf(logBuffer,sizeof(logBuffer),format,ap);
+	doLog(prefix,logBuffer);
+	va_end(ap);
+}

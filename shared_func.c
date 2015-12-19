@@ -12,7 +12,31 @@
 
 void daemon_init(bool bCloseFiles)
 {
+
+	pid_t pid;
+	int i;
+
+	if (0 != (pid = fork()))
+	{
+		exit(0);
+	}
+	setsid();
+	if((pid=fork())!=0)
+	{
+		exit(0);
+	}
+	chdir("/");
+
+	if (true == bCloseFiles)
+	{
+		for (i = 0; i < 64; ++i)
+		{
+			close(i);
+		}
+	}
+#ifdef __DEBUG__
 	printf("daemon_init done\n");
+#endif
 	return;
 }
 
@@ -70,6 +94,20 @@ bool fileExists(const char *filename)
 	return access(filename,0) ==0;
 }
 
+void chopPath(char *filePath)
+{
+	int lastIndex;
+	if ('\0' == filePath)
+	{
+		return;
+	}
+	lastIndex = strlen(filePath)-1;
+	if (filePath[lastIndex] == '/')
+	{
+		*(filePath +lastIndex) = '\0';
+	}
+
+}
 bool isDir(const char *filename)
 {
 	struct stat buf;
@@ -77,7 +115,7 @@ bool isDir(const char *filename)
 	{
 		return false;
 	}
-	return S_ISREG(buf.st_mode);
+	return S_ISDIR(buf.st_mode);
 }
 
 char * trim_right(char *pStr)
@@ -93,10 +131,10 @@ char * trim_right(char *pStr)
 		return pStr;
 	}
 	pEnd = pStr + strlen(pStr) -1;
-	for (p = pEnd; p > pStr; --p)
+	for (p = pEnd; p >= pStr; --p)
 	{
 		ch = *p;
-		if (' ' == ch || '\n' == ch || '\r' == ch || '\t' == ch)
+		if (!(' ' == ch || '\n' == ch || '\r' == ch || '\t' == ch))
 		{
 			break;
 		}

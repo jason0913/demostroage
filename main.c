@@ -106,7 +106,7 @@ int main(int argc, char const *argv[])
 		return result;
 	}
 
-	daemon_init(false);
+	// daemon_init(false);
 	umask(0);
 
 	g_storage_thread_count =0;

@@ -2,6 +2,10 @@
 #define __TRACKER_TYPES_H_
 
 #include <time.h>
+#include "fdfs_define.h"
+
+#define FDFS_MAX_TRACKERS		16
+#define FDFS_GROUP_NAME_MAX_LEN		16
 
 typedef struct
 {
@@ -23,5 +27,13 @@ typedef struct
 	time_t last_check_time;
 	*/
 } FDFSStorageStat;
+
+typedef struct
+{
+	int sock;
+	int port;
+	char ip_addr[FDFS_IPADDR_SIZE];
+	char group_name[FDFS_GROUP_NAME_MAX_LEN + 1];
+} TrackerServerInfo;
 
 #endif

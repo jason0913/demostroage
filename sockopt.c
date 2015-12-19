@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <errno.h>
 #include <string.h>
 #include "sockopt.h"
@@ -80,6 +81,35 @@ int socketServer(const char *bind_ipaddr, const int port, \
 #ifdef __DEBUG__
 	printf("listen...!,socketServer done\n");
 #endif
+}
+
+in_addr_t getIpaddrByName(const char *name, char *buff, const int bufferSize)
+{
+    	struct in_addr ip_addr;
+	struct hostent *ent;
+	in_addr_t **addr_list;
+
+	if (inet_pton(AF_INET, name, &ip_addr) == 1)
+	{
+		snprintf(buff, bufferSize, "%s", name);
+		return ip_addr.s_addr;
+	}
+
+	ent = gethostbyname(name);
+	if (ent == NULL)
+	{
+		return INADDR_NONE;
+	}
+        addr_list = (in_addr_t **)ent->h_addr_list;
+	if (addr_list[0] == NULL)
+	{
+		return INADDR_NONE;
+	}
+
+	memset(&ip_addr, 0, sizeof(ip_addr));
+	ip_addr.s_addr = *(addr_list[0]);
+	snprintf(buff, bufferSize, "%s", inet_ntoa(ip_addr));
+	return ip_addr.s_addr;
 }
 
 int nbaccept(int sock,int timeout,int *err_no)
