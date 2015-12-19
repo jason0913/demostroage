@@ -42,7 +42,7 @@ int main(int argc, char const *argv[])
 		return 1;
 	}
 
-	conf_filename = argv[1];
+	conf_filename = (char *)argv[1];
 	memset(bind_addr,0,sizeof(bind_addr));
 
 	if (0 !=(result = storage_load_from_conf_file(conf_filename,bind_addr,sizeof(bind_addr))))

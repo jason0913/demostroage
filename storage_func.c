@@ -18,7 +18,7 @@
 #include "tracker_proto.h"
 #include "sockopt.h"
 
-#include "client_global.h"
+#include "storage_global.h"
 
 #define DATA_DIR_INITED_FILENAME	".data_init_flag"
 #define STORAGE_STAT_FILENAME		"storage_stat.dat"
