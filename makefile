@@ -11,7 +11,7 @@ OBJS = $(patsubst %.c,%.o,$(SRCS))
 INCLUDE = ./include/
 
 $(EXE):$(OBJS)
-	$(CC) $^ -o $@ $(CFLAG)
+	$(CC) $^ -o $@ $(CFLAG) $(CFLAG)
 %.o:%.c
 	$(CC) -c $^ -I $(INCLUDE) -o $@ $(CFLAG)
 

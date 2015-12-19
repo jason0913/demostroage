@@ -676,6 +676,21 @@ int storage_open_storage_stat()
 
 int storage_close_storage_stat()
 {
+	int result;
+
+	result =0;
+	if (storage_stat_fd >=0)
+	{
+		result = storage_write_to_stat_file();
+		if (0 != close(storage_stat_fd))
+		{
+			result += errno != 0 ? errno : ENOENT;
+		}
+		storage_stat_fd = -1;
+	}
+
+#ifdef __DEBUG__
 	printf("storage_close_storage_stat done!\n");
-	return 0;
+#endif
+	return result;
 }

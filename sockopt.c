@@ -114,6 +114,54 @@ in_addr_t getIpaddrByName(const char *name, char *buff, const int bufferSize)
 
 int nbaccept(int sock,int timeout,int *err_no)
 {
+
+	struct sockaddr_in inaddr;
+	unsigned int sockaddr_len;
+	fd_set read_set;
+	fd_set exception_set;
+	struct timeval t;
+	int result;
+
+	if (timeout > 0)
+	{
+		t.tv_sec =timeout;
+		t.tv_usec = 0;
+
+		FD_ZERO(&read_set);
+		FD_ZERO(&exception_set);
+		FD_SET(sock,&read_set);
+		FD_SET(sock,&exception_set);
+
+		result = select(sock+1,&read_set,NULL,&exception_set,&t);
+		if (0 == result)
+		{
+			*err_no = ETIMEDOUT;
+			return -1;
+		}
+		else if (result <0)
+		{
+			*err_no = errno;
+			return -1;
+		}
+		if (!FD_ISSET(sock,&read_set))
+		{
+			*err_no = EAGAIN;
+			return -1;
+		}
+	}
+	sockaddr_len = sizeof(inaddr);
+	result = accept(sock,(struct sockaddr *)&inaddr,&sockaddr_len);
+	if (result <0)
+	{
+		*err_no = errno;
+	}
+	else
+	{
+		*err_no = 0;
+	}
+
+#ifdef __DEBUG__
 	printf("nbaccept done\n");
-	return 0;
+#endif
+	return result;
 }
