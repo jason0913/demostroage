@@ -16,4 +16,7 @@ extern int storage_check_and_make_data_dirs();
 extern int storage_open_storage_stat();
 extern int storage_close_storage_stat();
 extern int storage_write_to_stat_file();
+
+extern int storage_write_to_sync_ini_file();
+
 #endif

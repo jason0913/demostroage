@@ -82,7 +82,7 @@ static void doLog(const char *prefix,const char *text)
 	}
 }
 
-void logError(const char *prefix, const char *format,...)
+void logError(const char *format,...)
 {
 	char logBuffer[LINE_MAX];
 	va_list ap;

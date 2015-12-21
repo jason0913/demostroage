@@ -79,7 +79,7 @@ int socketServer(const char *bind_ipaddr, const int port, \
 	return sock;
 
 #ifdef __DEBUG__
-	printf("listen...!,socketServer done\n");
+	printf("socketServer done,listen...! file:%s,line:%d\n",__FILE__,__LINE__);
 #endif
 }
 
@@ -161,7 +161,257 @@ int nbaccept(int sock,int timeout,int *err_no)
 	}
 
 #ifdef __DEBUG__
-	printf("nbaccept done\n");
+	printf("nbaccept done file:%s,line:%d\n",__FILE__,__LINE__);
 #endif
 	return result;
+}
+
+int tcprecvdata(int sock,void* data,int size,int timeout)
+{
+
+	int byteleft;
+	int result;
+	unsigned char* p;
+	fd_set read_set;
+	fd_set exception_set;
+	struct timeval t;
+
+	if (sock < 0)
+	{
+#ifdef __DEBUG__
+		fprintf(stderr,"%s,%d:tcprecvdata argument sock<0.\n",
+			__FILE__,__LINE__);
+#endif
+		return -1;
+	}
+
+	if (NULL == data)
+	{
+#ifdef __DEBUG__
+		fprintf(stderr,"%s,%d:tcprecvdata argument data == NULL.\n",
+			__FILE__,__LINE__);
+#endif
+		return -1;
+	}
+
+	p=(unsigned char*)data;
+	byteleft = size;
+	FD_ZERO(&read_set);
+	FD_ZERO(&exception_set);
+
+	while(byteleft >  0)
+	{
+		FD_CLR(sock,&read_set);
+		FD_CLR(sock,&exception_set);
+		FD_SET(sock,&read_set);
+		FD_SET(sock,&exception_set);
+
+		if (timeout <=0)
+		{
+			result = select(sock +1,&read_set,NULL,&exception_set,NULL);
+		}
+		else
+		{
+			t.tv_usec = 0;
+			t.tv_sec = timeout;
+			result=select(sock+1,&read_set,NULL,&exception_set,&t);
+		}
+
+		if (result < 0)
+		{
+#ifdef __DEBUG__
+			fprintf(stderr,"%s,%d:tcprecvdata call select failed:%s.\n",
+				__FILE__,__LINE__,strerror(errno));
+#endif
+			return -1;
+		}
+		else if (0 == result)
+		{
+#ifdef __DEBUG__
+			fprintf(stderr,"%s,%d:tcprecvdata call select timeout:%s.\n",
+				__FILE__,__LINE__,strerror(errno));
+#endif
+			return 0;
+		}
+
+		if (FD_ISSET(sock,&read_set))
+		{
+			result = read(sock,p,byteleft);
+			if (result < 0)
+			{
+#ifdef __DEBUG__
+				fprintf(stderr,"%s,%d:tcprecvdata call read failed:%s.\n",
+					__FILE__,__LINE__,strerror(errno));
+#endif
+				return(-1);
+			}
+
+			if (0 == result)
+			{
+#ifdef __DEBUG__
+				fprintf(stderr,"%s,%d:tcprecvdata call return 0, remote close connection?\
+				 errno:%d, error info:%s.\n",
+					__FILE__,__LINE__,errno,strerror(errno));
+#endif
+				return(-1);
+			}
+
+			byteleft-=result;
+			p+=result;
+			continue;
+		}
+		return -1;
+	}
+
+	return 1;
+}
+
+int tcpsenddata(int sock,void* data,int size,int timeout)
+{
+
+	int byteleft;
+	int result;
+	unsigned char* p;
+	fd_set write_set;
+	fd_set exception_set;
+	struct timeval t;
+
+	if (sock < 0)
+	{
+#ifdef __DEBUG__
+		fprintf(stderr,"%s,%d:tcpsenddata argument sock<0.\n",
+			__FILE__,__LINE__);
+#endif
+		return -1;
+	}
+
+	if (NULL == data)
+	{
+#ifdef __DEBUG__
+		fprintf(stderr,"%s,%d:tcpsenddata argument data == NULL.\n",
+			__FILE__,__LINE__);
+#endif
+		return -1;
+	}
+
+	p=(unsigned char*)data;
+	byteleft = size;
+	FD_ZERO(&write_set);
+	FD_ZERO(&exception_set);
+
+	while(byteleft >  0)
+	{
+		FD_CLR(sock,&write_set);
+		FD_CLR(sock,&exception_set);
+		FD_SET(sock,&write_set);
+		FD_SET(sock,&exception_set);
+
+		if (timeout <=0)
+		{
+			result = select(sock +1,&write_set,NULL,&exception_set,NULL);
+		}
+		else
+		{
+			t.tv_usec = 0;
+			t.tv_sec = timeout;
+			result=select(sock+1,&write_set,NULL,&exception_set,&t);
+		}
+
+		if (result < 0)
+		{
+#ifdef __DEBUG__
+			fprintf(stderr,"%s,%d:tcpsenddata call select failed:%s.\n",
+				__FILE__,__LINE__,strerror(errno));
+#endif
+			return -1;
+		}
+		else if (0 == result)
+		{
+#ifdef __DEBUG__
+			fprintf(stderr,"%s,%d:tcpsenddata call select timeout:%s.\n",
+				__FILE__,__LINE__,strerror(errno));
+#endif
+			return 0;
+		}
+
+		if (FD_ISSET(sock,&write_set))
+		{
+			result = write(sock,p,byteleft);
+			if (result < 0)
+			{
+#ifdef __DEBUG__
+				fprintf(stderr,"%s,%d:tcpsenddata call write failed:%s.\n",
+					__FILE__,__LINE__,strerror(errno));
+#endif
+				return (-1);
+			}
+
+			byteleft-=result;
+			p+=result;
+			continue;
+		}
+		return -1;
+	}
+
+	return 1;
+}
+
+int connectserverbyip(int sock, char* ip, short port)
+{
+	int result;
+	struct sockaddr_in addr;
+	addr.sin_family = PF_INET;
+	addr.sin_port = htons(port);
+	result = inet_aton(ip, &addr.sin_addr);
+
+	if (0 == result)
+	{
+
+#ifdef __DEBUG__
+		fprintf(stderr,"file: %s, line: %d:connectserverbyip call " \
+			"inet_aton failed: errno: %d, error info: %s.\n",
+			__FILE__, __LINE__, errno, strerror(errno));
+#endif
+		return -1;
+	}
+
+	result = connect(sock, (const struct sockaddr*)&addr, sizeof(addr));
+	if (result < 0)
+	{
+
+#ifdef __DEBUG__
+		fprintf(stderr,"file: %s, line: %d, connectserverbyip " \
+			"%s:%d, call connect is failed, " \
+			"errno: %d, error info: %s.\n",
+			__FILE__, __LINE__, ip, port, errno, strerror(errno));
+#endif
+		return -1;
+	}
+
+	return 1;
+}
+
+in_addr_t getIpaddr(getnamefunc getname, int sock, char *buff, const int bufferSize)
+{
+
+	struct sockaddr_in addr;
+	int addrlen;
+
+	memset(&addr,0,sizeof(addr));
+	addrlen = sizeof(addr);
+
+	if (0 != getname(sock, (struct sockaddr *)&addr, (socklen_t *)&addrlen))
+	{
+		buff[0] = '\0';
+		return INADDR_NONE;
+	}
+
+	if (addrlen > 0)
+	{
+		snprintf(buff, bufferSize, "%s", inet_ntoa(addr.sin_addr));
+	}
+	else
+		buff[0] ='\0';
+
+	return addr.sin_addr.s_addr;
 }

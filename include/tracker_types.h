@@ -4,6 +4,8 @@
 #include <time.h>
 #include "fdfs_define.h"
 
+#define FDFS_ONE_MB	(1024 * 1024)
+
 #define FDFS_MAX_TRACKERS		16
 #define FDFS_GROUP_NAME_MAX_LEN		16
 
@@ -36,4 +38,19 @@ typedef struct
 	char group_name[FDFS_GROUP_NAME_MAX_LEN + 1];
 } TrackerServerInfo;
 
+typedef struct
+{
+	char sz_total_upload_count[4];
+	char sz_success_upload_count[4];
+	char sz_total_set_meta_count[4];
+	char sz_success_set_meta_count[4];
+	char sz_total_delete_count[4];
+	char sz_success_delete_count[4];
+	char sz_total_download_count[4];
+	char sz_success_download_count[4];
+	char sz_total_get_meta_count[4];
+	char sz_success_get_meta_count[4];
+	char sz_last_source_update[4];
+	char sz_last_sync_update[4];
+} FDFSStorageStatBuff;
 #endif

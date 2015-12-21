@@ -34,9 +34,9 @@ static int write_to_binlog_index()
 		g_base_path,SYNC_BINLOG_INDEX_FILENAME);
 	if ((fp=fopen(full_filename, "wb")) == NULL)
 	{
-		printf("file:%s,line:%d,\
+		/*printf("file:%s,line:%d,\
 			open:\"%s\" failed,errno= %d,err info = %s",
-			__FILE__,__LINE__,full_filename,errno,strerror(errno));
+			__FILE__,__LINE__,full_filename,errno,strerror(errno));*/
 
 		logError("file:%s,line:%d,"\
 			"open:\"%s\" failed,errno= %d,err info = %s",

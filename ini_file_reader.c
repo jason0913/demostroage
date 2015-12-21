@@ -166,7 +166,10 @@ int iniLoadItems(const char *szFilename, IniItemInfo **ppItems, int *nItemCount)
 
 void iniFreeItems(IniItemInfo *items)
 {
-	;
+	if (NULL != items)
+	{
+		free(items);
+	}
 }
 
 int iniGetValues(const char *szName, IniItemInfo *items, const int nItemCount, \

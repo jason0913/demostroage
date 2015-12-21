@@ -16,4 +16,4 @@ $(EXE):$(OBJS)
 	$(CC) -c $^ -I $(INCLUDE) -o $@ $(CFLAG)
 
 clean:
-	$(RM) $(RMFLAG) $(EXE) $(OBJS)
+	$(RM) $(RMFLAG) $(EXE) $(OBJS) ./log/ ./data/ ./sync/

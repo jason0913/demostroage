@@ -15,4 +15,6 @@ extern char *trim_left(char *pStr);
 extern char *trim_right(char *pStr);
 extern char *trim(char *pStr);
 
+extern void int2buff(const int n, char *buff);
+
 #endif
