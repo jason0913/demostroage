@@ -6,6 +6,7 @@
 typedef int (*getnamefunc)(int socket, struct sockaddr *address, socklen_t *address_len);
 
 #define getSockIpaddr(sock, buff, bufferSize) getIpaddr(getsockname, sock, buff, bufferSize)
+#define getPeerIpaddr(sock, buff, bufferSize) getIpaddr(getpeername, sock, buff, bufferSize)
 
 extern int socketServer(const char *bind_ipaddr, const int port, \
 		const char *szLogFilePrefix);

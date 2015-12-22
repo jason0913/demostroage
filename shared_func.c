@@ -191,3 +191,138 @@ void int2buff(const int n, char *buff)
 	*p++ = (n >> 8) & 0xFF;
 	*p++ = n & 0xFF;
 }
+
+int getFileContent(const char *filename, char **buff, int *file_size)
+{
+
+	FILE *fp;
+
+	fp = fopen(filename,"rb");
+	if (NULL == fp)
+	{
+		*buff = NULL;
+		*file_size = 0;
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	if (0 != fseek(fp,0,SEEK_END))
+	{
+		*buff = NULL;
+		*file_size = 0;
+		fclose(fp);
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	*file_size = ftell(fp);
+	if (*file_size < 0)
+	{
+		*buff = NULL;
+		*file_size = 0;
+		fclose(fp);
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	*buff = (char *) malloc(*file_size +1);
+	if (NULL == *buff)
+	{
+		*file_size = 0;
+		fclose(fp);
+		return errno != 0 ? errno : ENOMEM;
+	}
+
+	rewind(fp);
+	if (fread(*buff,1,*file_size,fp) != *file_size)
+	{
+		free(*buff);
+		*buff = NULL;
+		*file_size = 0;
+		fclose(fp);
+		return errno != 0 ? errno : ENOENT;
+	}
+	(*buff)[*file_size] ='\0';
+	fclose(fp);
+
+	return 0;
+}
+
+int writeToFile(const char *filename, const char *buff, const int file_size)
+{
+	FILE *fp;
+	fp = fopen(filename,"wb");
+	if (NULL == fp)
+	{
+		logError("file: %s, line: %d, " \
+			"open file %s fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, filename, \
+			errno, strerror(errno));
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	if (file_size != fwrite(buff,1,file_size,fp))
+	{
+		logError("file: %s, line: %d, " \
+			"write file %s fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, filename, \
+			errno, strerror(errno));
+		fclose(fp);
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	fclose(fp);
+	return 0;
+}
+
+int getOccurCount(const char *src, const char seperator)
+{
+	int count;
+	char *p;
+
+	count =0;
+	p = strchr(src,seperator);
+	while(NULL != p)
+	{
+		count++;
+		p = strchr(p+1,seperator);
+	}
+
+	return count;
+}
+
+int splitEx(char *src, const char seperator, char **pCols, const int nMaxCols)
+{
+	char *p;
+	char **pCurrent;
+	int count = 0;
+
+	if (nMaxCols <= 0)
+	{
+		return 0;
+	}
+
+	p = src;
+	pCurrent = pCols;
+
+	while(1)
+	{
+		*pCurrent = p;
+		pCurrent ++;
+
+		count++;
+		if (count >= nMaxCols)
+		{
+			break;
+		}
+
+		p = strchr(p,seperator);
+		if (NULL == p)
+		{
+			break;
+		}
+		*p = '\0';
+		p++;
+	}
+
+	return count;
+}

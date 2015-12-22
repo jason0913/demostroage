@@ -2,6 +2,7 @@
 #define __STORAGE_FUNC_
 
 #define STORAGE_DATA_DIR_FORMAT		"%02X"
+#define STORAGE_META_FILE_EXT		"-m"
 
 typedef char * (*get_filename_func)(const void *pArg, \
 			char *full_filename);

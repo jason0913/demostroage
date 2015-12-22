@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
@@ -16,6 +17,7 @@
 #define SYNC_BINLOG_FILE_MAX_SIZE	1024 * 1024 * 1024
 #define SYNC_BINLOG_FILE_PREFIX		"binlog"
 #define SYNC_BINLOG_INDEX_FILENAME	SYNC_BINLOG_FILE_PREFIX".index"
+#define SYNC_BINLOG_FILE_EXT_FMT	".%03d"
 
 int g_binlog_index = 0;
 FILE *g_fp_binlog = NULL;
@@ -166,6 +168,7 @@ int storage_sync_init()
 
 	return 0;
 }
+
 int storage_sync_destroy()
 {
 
@@ -188,4 +191,149 @@ int storage_sync_destroy()
 #endif
 
 	return 0;
+}
+
+static char *get_writable_binlog_filename(char *full_filename)
+{
+	static char buff[MAX_PATH_SIZE];
+
+	if (NULL == full_filename)
+	{
+		full_filename = buff;
+	}
+
+	snprintf(full_filename, MAX_PATH_SIZE, \
+			"%s/data/"SYNC_DIR_NAME"/"SYNC_BINLOG_FILE_PREFIX"" \
+			SYNC_BINLOG_FILE_EXT_FMT, \
+			g_base_path, g_binlog_index);
+
+	return full_filename;
+}
+
+static int open_next_writable_binlog()
+{
+	char full_filename[MAX_PATH_SIZE];
+
+	storage_sync_destroy();
+
+	get_writable_binlog_filename(full_filename);
+	if (fileExists(full_filename))
+	{
+		if (0 != unlink(full_filename))
+		{
+			logError("file: %s, line: %d, " \
+				"unlink file \"%s\" fail, " \
+				"errno: %d, error info: %s", \
+				__FILE__,__LINE__, full_filename, \
+				errno, strerror(errno));
+			return errno != 0 ? errno : ENOENT;
+		}
+
+		logError("file: %s, line: %d, " \
+			"binlog file \"%s\" already exists, truncate", \
+			__FILE__,__LINE__, full_filename);
+	}
+
+	g_fp_binlog = fopen(full_filename,"r");
+	if (NULL == g_fp_binlog)
+	{
+		logError("file: %s, line: %d, " \
+			"open file \"%s\" fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, full_filename, \
+			errno, strerror(errno));
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	return 0;
+}
+
+int storage_binlog_write(const char op_type, const char *filename)
+{
+	int fd;
+	struct flock lock;
+	int write_bytes;
+	int result;
+
+	fd = fileno(g_fp_binlog);
+
+	lock.l_type = F_WRLCK;
+	lock.l_start = 0;
+	lock.l_len = 10;
+	lock.l_whence = SEEK_SET;
+
+	if (0 != fcntl(fd,F_SETLKW,&lock))
+	{
+		logError("file: %s, line: %d, " \
+			"lock binlog file \"%s\" fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, get_writable_binlog_filename(NULL), \
+			errno, strerror(errno));
+
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	write_bytes = fprintf(g_fp_binlog, "%d %c %s\n", \
+			(int)time(NULL), op_type, filename);
+
+	if (write_bytes <= 0)
+	{
+		logError("file: %s, line: %d, " \
+			"write to binlog file \"%s\" fail, " \
+			"errno: %d, error info: %s",  \
+			__LINE__, get_writable_binlog_filename(NULL), \
+			errno, strerror(errno));
+
+		result = errno != 0 ? errno : ENOENT;
+	}
+	else if (0 != fflush(g_fp_binlog))
+	{
+		logError("file: %s, line: %d, " \
+			"sync to binlog file \"%s\" fail, " \
+			"errno: %d, error info: %s",  \
+			__FILE__,__LINE__, get_writable_binlog_filename(NULL), \
+			errno, strerror(errno));
+
+		result = errno != 0 ? errno : ENOENT;
+	}
+	else
+	{
+		binlog_file_size += write_bytes;
+		if (binlog_file_size >= SYNC_BINLOG_FILE_MAX_SIZE)
+		{
+			g_binlog_index++;
+			if (0 == (result = write_to_binlog_index()))
+			{
+				result = open_next_writable_binlog();
+			}
+
+			binlog_file_size = 0;
+			if (0 != result)
+			{
+				g_continue_flag = false;
+				logError("file: %s, line: %d, " \
+					"open binlog file \"%s\" fail, " \
+					"process exit!", \
+					__FILE__,__LINE__, \
+					get_writable_binlog_filename(NULL));
+			}
+		}
+		else
+		{
+			result = 0;
+		}
+	}
+
+	lock.l_type = F_UNLCK;
+	if (fcntl(fd, F_SETLKW, &lock) != 0)
+	{
+		logError("file: %s, line: %d, " \
+			"unlock binlog file \"%s\" fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, get_writable_binlog_filename(NULL), \
+			errno, strerror(errno));
+		return errno != 0 ? errno : ENOENT;
+	}
+
+	return result;
 }

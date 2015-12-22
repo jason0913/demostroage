@@ -13,6 +13,18 @@
 #define TRACKER_PROTO_CMD_STORAGE_SYNC_NOTIFY   88  //sync notify
 #define TRACKER_PROTO_CMD_STORAGE_RESP          80
 
+
+#define STORAGE_PROTO_CMD_UPLOAD_FILE		11
+#define STORAGE_PROTO_CMD_DELETE_FILE		12
+#define STORAGE_PROTO_CMD_SET_METADATA		13
+#define STORAGE_PROTO_CMD_DOWNLOAD_FILE		14
+#define STORAGE_PROTO_CMD_GET_METADATA		15
+#define STORAGE_PROTO_CMD_SYNC_CREATE_FILE	16
+#define STORAGE_PROTO_CMD_SYNC_DELETE_FILE	17
+#define STORAGE_PROTO_CMD_SYNC_UPDATE_FILE	18
+#define STORAGE_PROTO_CMD_RESP			10
+
+
 #define TRACKER_PROTO_PKG_LEN_SIZE	9
 #define TRACKER_PROTO_CMD_SIZE		1
 
@@ -42,10 +54,23 @@ typedef struct
 } TrackerStorageSyncReqBody;
 
 extern int tracker_validate_group_name(const char *group_name);
+extern int metadata_cmp_by_name(const void *p1, const void *p2);
 
 extern int tracker_quit(TrackerServerInfo *pTrackerServer);
 
 extern int tracker_recv_response(TrackerServerInfo *pTrackerServer, \
 		char **buff, const int buff_size, \
 		int *in_bytes);
+
+extern char *fdfs_pack_metadata(const FDFSMetaData *meta_list, const int meta_count, \
+			char *meta_buff, int *buff_bytes);
+
+extern FDFSMetaData *fdfs_split_metadata_ex(char *meta_buff, \
+		const char recordSeperator, const char filedSeperator, \
+		int *meta_count, int *err_no);
+
+#define fdfs_split_metadata(meta_buff, meta_count, err_no) \
+		fdfs_split_metadata_ex(meta_buff, FDFS_RECORD_SEPERATOR, \
+		FDFS_FIELD_SEPERATOR, meta_count, err_no)
+
 #endif

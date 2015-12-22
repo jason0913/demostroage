@@ -9,6 +9,9 @@
 #define FDFS_MAX_TRACKERS		16
 #define FDFS_GROUP_NAME_MAX_LEN		16
 
+#define FDFS_MAX_META_NAME_LEN		64
+#define FDFS_MAX_META_VALUE_LEN		256
+
 typedef struct
 {
 	int total_upload_count;
@@ -53,4 +56,17 @@ typedef struct
 	char sz_last_source_update[4];
 	char sz_last_sync_update[4];
 } FDFSStorageStatBuff;
+
+typedef struct
+{
+	int sock;
+	char ip_addr[FDFS_IPADDR_SIZE];
+} StorageClientInfo;
+
+typedef struct
+{
+	char name[FDFS_MAX_META_NAME_LEN + 1];
+	char value[FDFS_MAX_META_VALUE_LEN + 1];
+} FDFSMetaData;
+
 #endif

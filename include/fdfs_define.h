@@ -1,6 +1,9 @@
 #ifndef __FDFS_DEFINE_H_
 #define __FDFS_DEFINE_H_
 
+#define FDFS_RECORD_SEPERATOR	'\x01'
+#define FDFS_FIELD_SEPERATOR	'\x02'
+
 #ifndef true
 typedef char  bool;
 #define true  1
