@@ -24,6 +24,10 @@
 #define STORAGE_PROTO_CMD_SYNC_UPDATE_FILE	18
 #define STORAGE_PROTO_CMD_RESP			10
 
+//for overwrite all old metadata
+#define STORAGE_SET_METADATA_FLAG_OVERWRITE	'O'
+//for replace, insert when the meta item not exist, otherwise update it
+#define STORAGE_SET_METADATA_FLAG_MERGE		'M'
 
 #define TRACKER_PROTO_PKG_LEN_SIZE	9
 #define TRACKER_PROTO_CMD_SIZE		1

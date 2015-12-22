@@ -69,6 +69,17 @@ static int storage_gen_filename(StorageClientInfo *pClientInfo, \
 	return 0;
 }
 
+static int storage_do_set_metadata(StorageClientInfo *pClientInfo, \
+		const char *full_meta_filename, char *meta_buff, \
+		const int meta_bytes, const char op_flag, char *sync_flag)
+{
+
+#ifdef __DEBUG__
+	printf("to be finish ---->>>>> file:%s,line:%s\n", __FILE__,__LINE__);
+#endif
+	return 0;
+}
+
 static int storage_download_file(StorageClientInfo *pClientInfo, \
 				const int nInPackLen)
 {
@@ -892,6 +903,299 @@ static int storage_get_metadata(StorageClientInfo *pClientInfo, \
 			__FILE__,__LINE__, pClientInfo->ip_addr, \
 			errno, strerror(errno));
 
+		return errno != 0 ? errno : EPIPE;
+	}
+
+	return resp.status;
+}
+
+/**
+pkg format:
+Header
+FDFS_GROUP_NAME_MAX_LEN bytes: group_name
+filename
+**/
+static int storage_sync_delete_file(StorageClientInfo *pClientInfo, \
+				const int nInPackLen)
+{
+	TrackerHeader resp;
+	char in_buff[FDFS_GROUP_NAME_MAX_LEN + 32];
+	char group_name[FDFS_GROUP_NAME_MAX_LEN + 1];
+	char full_filename[MAX_PATH_SIZE+sizeof(in_buff)];
+	char *filename;
+
+	while(1)
+	{
+		if (nInPackLen <= FDFS_GROUP_NAME_MAX_LEN)
+		{
+			logError("file: %s, line: %d, " \
+				"cmd=%d, client ip: %s, package size %d " \
+				"is not correct, " \
+				"expect length <= %d", \
+				__FILE__,__LINE__, \
+				STORAGE_PROTO_CMD_SYNC_DELETE_FILE, \
+				pClientInfo->ip_addr,  \
+				nInPackLen, FDFS_GROUP_NAME_MAX_LEN);
+			resp.status = EINVAL;
+			break;
+		}
+
+		if (nInPackLen >= sizeof(in_buff))
+		{
+			logError("file: %s, line: %d, " \
+				"cmd=%d, client ip: %s, package size %d " \
+				"is too large, " \
+				"expect length should < %d", \
+				__FILE__,__LINE__, \
+				STORAGE_PROTO_CMD_SYNC_DELETE_FILE, \
+				pClientInfo->ip_addr,  \
+				nInPackLen, sizeof(in_buff));
+			resp.status = EINVAL;
+			break;
+		}
+
+		if (1 != tcprecvdata(pClientInfo->sock,in_buff,nInPackLen,g_network_timeout))
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, recv data fail, " \
+				"errno: %d, error info: %s.", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, \
+				errno, strerror(errno));
+			resp.status = errno != 0 ? errno : EPIPE;
+			break;
+		}
+
+		memcpy(group_name, in_buff, FDFS_GROUP_NAME_MAX_LEN);
+		group_name[FDFS_GROUP_NAME_MAX_LEN] = '\0';
+		if (0 != strcmp(group_name,g_group_name))
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, group_name: %s " \
+				"not correct, should be: %s", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, \
+				group_name, g_group_name);
+			resp.status = EINVAL;
+			break;
+		}
+
+		*(in_buff + nInPackLen) = '\0';
+		filename = in_buff + FDFS_GROUP_NAME_MAX_LEN;
+		sprintf(full_filename, "%s/data/%s", \
+			g_base_path, filename);
+		if (0 != unlink(full_filename))
+		{
+			if (ENOENT == errno)
+			{
+				logError("file: %s, line: %d, " \
+					"cmd=%d, client ip: %s, file %s not exist, " \
+					"maybe delete later?", \
+					__FILE__,__LINE__, \
+					STORAGE_PROTO_CMD_SYNC_DELETE_FILE, \
+					pClientInfo->ip_addr, full_filename);
+			}
+			else
+			{
+				logError("file: %s, line: %d, " \
+					"client ip: %s, delete file %s fail," \
+					"errno: %d, error info: %s", \
+					__FILE__,__LINE__, pClientInfo->ip_addr, \
+					full_filename, errno, strerror(errno));
+				resp.status = errno != 0 ? errno : EACCES;
+				break;
+			}
+		}
+		resp.status = storage_binlog_write( \
+					STORAGE_OP_TYPE_REPLICA_DELETE_FILE, \
+					filename);
+		break;
+	}
+
+	resp.cmd = STORAGE_PROTO_CMD_RESP;
+	strcpy(resp.pkg_len,"0");
+
+	if (1 != tcpsenddata(pClientInfo->sock,&resp,sizeof(resp),g_network_timeout))
+	{
+		logError("file: %s, line: %d, " \
+			"client ip: %s, send data fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, pClientInfo->ip_addr, \
+			errno, strerror(errno));
+
+		return errno != 0 ? errno : EPIPE;
+	}
+
+	return resp.status;
+}
+
+/**
+9 bytes: filename length
+9 bytes: meta data size
+1 bytes: operation flag, 
+     'O' for overwrite all old metadata
+     'M' for merge, insert when the meta item not exist, otherwise update it
+FDFS_GROUP_NAME_MAX_LEN bytes: group_name
+filename
+meta data bytes: each meta data seperated by \x01,
+		 name and value seperated by \x02
+**/
+static int storage_set_metadata(StorageClientInfo *pClientInfo, \
+				const int nInPackLen)
+{
+
+	TrackerHeader resp;
+	char *in_buff;
+	char group_name[FDFS_GROUP_NAME_MAX_LEN + 1];
+	char filename[32];
+	char meta_filename[32+sizeof(STORAGE_META_FILE_EXT)];
+	char full_filename[MAX_PATH_SIZE + 32 + sizeof(STORAGE_META_FILE_EXT)];
+	char op_flag;
+	char sync_flag;
+	char *meta_buff;
+	int meta_bytes;
+	int filename_len;
+
+	in_buff = NULL;
+
+	while(1)
+	{
+		if (nInPackLen <= 2 * TRACKER_PROTO_PKG_LEN_SIZE + 1 + \
+					FDFS_GROUP_NAME_MAX_LEN)
+		{
+			logError("file: %s, line: %d, " \
+				"cmd=%d, client ip: %s, package size %d " \
+				"is not correct, " \
+				"expect length > %d", \
+				__FILE__,__LINE__, \
+				STORAGE_PROTO_CMD_SET_METADATA, \
+				pClientInfo->ip_addr,  \
+				nInPackLen, 2 * TRACKER_PROTO_PKG_LEN_SIZE + 1 \
+				+ FDFS_GROUP_NAME_MAX_LEN);
+			resp.status = EINVAL;
+			break;
+		}
+
+		in_buff = (char*)malloc(nInPackLen +1);
+		if (NULL == in_buff)
+		{
+			resp.status = errno != 0 ? errno : ENOMEM;
+			break;
+		}
+
+		if (1 != tcprecvdata(pClientInfo->sock,in_buff,nInPackLen,g_network_timeout))
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, recv data fail, " \
+				"errno: %d, error info: %s.", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, \
+				errno, strerror(errno));
+			resp.status = errno != 0 ? errno : EPIPE;
+			break;
+		}
+
+		*(in_buff + nInPackLen) = '\0';
+		filename_len = strtol(in_buff,NULL,16);
+		meta_bytes = strtol(in_buff + TRACKER_PROTO_PKG_LEN_SIZE, \
+				NULL, 16);
+
+		if (filename_len <=0 || filename_len >= sizeof(filename))
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, invalid filename length: %d", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, filename_len);
+			resp.status = EINVAL;
+			break;
+		}
+
+		op_flag = *(in_buff + 2 * TRACKER_PROTO_PKG_LEN_SIZE);
+		if (op_flag != STORAGE_SET_METADATA_FLAG_OVERWRITE && \
+			op_flag != STORAGE_SET_METADATA_FLAG_MERGE)
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, " \
+				"invalid operation flag: 0x%02X", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, op_flag);
+			resp.status = EINVAL;
+			break;
+		}
+
+		if (meta_bytes < 0 || meta_bytes != nInPackLen - \
+				(2 * TRACKER_PROTO_PKG_LEN_SIZE + 1 + \
+				FDFS_GROUP_NAME_MAX_LEN + filename_len))
+		{
+			logError("file: "__FILE__", line: %d, " \
+				"client ip:%s, invalid meta bytes: %d", \
+				__LINE__, pClientInfo->ip_addr, meta_bytes);
+			resp.status = EINVAL;
+			break;
+		}
+
+		memcpy(group_name,in_buff + 2* TRACKER_PROTO_PKG_LEN_SIZE +1,\
+			FDFS_GROUP_NAME_MAX_LEN);
+		group_name[FDFS_GROUP_NAME_MAX_LEN] ='\0';
+
+		if (0 != strcmp(group_name,g_group_name))
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, group_name: %s " \
+				"not correct, should be: %s", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, \
+				group_name, g_group_name);
+			resp.status = EINVAL;
+			break;
+		}
+
+		memcpy(filename, in_buff + 2 * TRACKER_PROTO_PKG_LEN_SIZE + 1 + \
+			FDFS_GROUP_NAME_MAX_LEN, filename_len);
+		*(filename + filename_len) = '\0';
+
+		meta_buff = in_buff + 2 * TRACKER_PROTO_PKG_LEN_SIZE + 1 + \
+				FDFS_GROUP_NAME_MAX_LEN + filename_len;
+		*(meta_buff + meta_bytes) = '\0';
+
+		sprintf(full_filename,"%s/data/%s",g_base_path,filename);
+		if (!fileExists(full_filename))
+		{
+			logError("file: %s, line: %d, " \
+				"client ip:%s, filename: %s not exist", \
+				__FILE__,__LINE__, pClientInfo->ip_addr, filename);
+			resp.status = ENOENT;
+			break;
+		}
+
+		sprintf(meta_filename, "%s"STORAGE_META_FILE_EXT, filename);
+		strcat(full_filename, STORAGE_META_FILE_EXT);
+
+		resp.status = storage_do_set_metadata(pClientInfo, \
+			full_filename, meta_buff, meta_bytes, \
+			op_flag, &sync_flag);
+
+		if (0 != resp.status)
+		{
+			break;
+		}
+		if (0 != sync_flag)
+		{
+			resp.status = storage_binlog_write( \
+					sync_flag, meta_filename);
+		}
+		break;
+
+	}
+	resp.cmd = STORAGE_PROTO_CMD_RESP;
+	sprintf(resp.pkg_len, "%x", 0);
+
+	if (NULL != in_buff)
+	{
+		free(in_buff);
+	}
+
+	if (1 != tcpsenddata(pClientInfo->sock,(void *)&resp,sizeof(resp),g_network_timeout))
+	{
+		logError("file: %s, line: %d, " \
+			"client ip: %s, send data fail, " \
+			"errno: %d, error info: %s", \
+			__FILE__,__LINE__, pClientInfo->ip_addr, \
+			errno, strerror(errno));
 		return errno != 0 ? errno : EPIPE;
 	}
 

@@ -18,7 +18,7 @@ static unsigned char valueToChar[64];
 /**
 * binary value encoded by a given letter of the alphabet 0..63
 */
-static int charToValue[256];
+//static int charToValue[256];
 static int pad_ch;
 
 
